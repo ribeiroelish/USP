@@ -11,7 +11,7 @@ expressao_bruta <- read_csv("norm_data_1.csv", show_col_types = FALSE)
 genera_bruto    <- read_tsv("39947_gene_ages.tsv", show_col_types = FALSE)
 
 # ==============================================================================
-# 2. EXTRAÇÃO DO DICIONÁRIO DE CLADOS
+# 2. EXTRAÇÃO DO DICIONÁRIO DE CLADOS  
 # ==============================================================================
 cat("Criando o Dicionário Evolutivo...\n")
 dicionario_clados <- genera_bruto %>%
