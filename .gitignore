@@ -4,3 +4,8 @@
 .httr-oauth
 .DS_Store
 .quarto
+
+PhyloSet_Nipponbare.csv
+PhyloSet_N22.csv
+Expression_cultivares_PS.csv
+dicionario_clados.csv
