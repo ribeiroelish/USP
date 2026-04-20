@@ -1,12 +1,11 @@
 # ==============================================================================
-# PROJETO: Filotranscritômica do Arroz - VERSÃO COM REPLICATAS
+# PROJETO: Filotranscritômica - PREPARAÇÃO DE DADOS (Dusk/Down)
 # ==============================================================================
 
 library(tidyverse)
 
-# 1. Carregamento
-cat("Lendo arquivos brutos...\n")
-expressao_bruta <- read_csv("norm_data_1.csv", show_col_types = FALSE)
+# 1. Datasets
+expressao_bruta <- read_csv("TPM_genes.csv", show_col_types = FALSE)
 genera_bruto    <- read_tsv("39947_gene_ages.tsv", show_col_types = FALSE)
 
 # 2. Dicionário de Clados 
@@ -16,18 +15,21 @@ dicionario_clados <- genera_bruto %>%
   drop_na() %>%
   arrange(PS)
 
-# 3. Limpeza dos IDs (GenEra)
+# 3. Clean
+
 genera_limpo <- genera_bruto %>%
-  mutate(GeneID = ifelse(str_detect(`#gene`, "^LOC_Os"), 
-                         str_replace(`#gene`, "\\..*", ""), 
-                         `#gene`)) %>%
+  mutate(GeneID = ifelse(
+    str_detect(`#gene`, "^LOC_Os"), 
+    str_replace(`#gene`, "\\.\\d+$", ""), 
+    `#gene`
+  )) %>%
   filter(!is.na(rank)) %>%
+  distinct(GeneID, .keep_all = TRUE) %>%
   select(Phylostratum = rank, GeneID)
 
 # ==============================================================================
 # 4. ORGANIZAÇÃO DAS REPLICATAS 
 # ==============================================================================
-cat("Organizando as replicatas biológicas...\n")
 
 expressao_longa <- expressao_bruta %>%
   rename(GeneID = `#gene`) %>%
@@ -37,39 +39,43 @@ expressao_longa <- expressao_bruta %>%
     names_sep = "\\.",
     values_to = "TPM"
   ) %>%
-
-  mutate(Estagio_Rep = paste0("T", Time, "_", Temp, "C_", Diel, "_", Rep))
+  mutate(Estagio_Rep = paste0("T", Time, "_", Temp, "C_", Rep))
 
 # ==============================================================================
-# 5. MONTAGEM DAS MATRIZES (PhyloExpressionSets)
+# 5.(Nipponbare/N22 x Dusk/Dawn)
 # ==============================================================================
-cat("Gerando matrizes para Nipponbare e N22...\n")
 
-# Matriz Nipponbare
-PhyloSet_Nipponbare_Reps <- genera_limpo %>%
-  inner_join(
-    expressao_longa %>% 
-      filter(Genotype == "Nipponbare") %>%
-      select(GeneID, Estagio_Rep, TPM) %>%
-      pivot_wider(names_from = Estagio_Rep, values_from = TPM),
-    by = "GeneID"
-  )
 
-# Matriz N22
-PhyloSet_N22_Reps <- genera_limpo %>%
-  inner_join(
-    expressao_longa %>% 
-      filter(Genotype == "N22") %>%
-      select(GeneID, Estagio_Rep, TPM) %>%
-      pivot_wider(names_from = Estagio_Rep, values_from = TPM),
-    by = "GeneID"
-  )
+# Função 
+criar_matriz_tai <- function(df_longo, idades, genotipo, turno) {
+  idades %>%
+    inner_join(
+      df_longo %>% 
+        filter(Genotype == genotipo, Diel == turno) %>%
+        arrange(as.numeric(Time), Rep) %>%
+        select(GeneID, Estagio_Rep, TPM) %>%
+        pivot_wider(names_from = Estagio_Rep, values_from = TPM),
+      by = "GeneID"
+    )
+}
+
+# Quatro grupos
+PhyloSet_Nip_Dusk   <- criar_matriz_tai(expressao_longa, genera_limpo, "Nipponbare", "Dusk")
+PhyloSet_Nip_Dawn <- criar_matriz_tai(expressao_longa, genera_limpo, "Nipponbare", "Dawn")
+
+PhyloSet_N22_Dusk   <- criar_matriz_tai(expressao_longa, genera_limpo, "N22", "Dusk")
+PhyloSet_N22_Dawn <- criar_matriz_tai(expressao_longa, genera_limpo, "N22", "Dawn")
 
 # ==============================================================================
 # 6. EXPORTAÇÃO
 # ==============================================================================
-write_csv(PhyloSet_Nipponbare_Reps, "PhyloSet_Nipponbare_Reps.csv")
-write_csv(PhyloSet_N22_Reps, "PhyloSet_N22_Reps.csv")
+
+write_csv(PhyloSet_Nip_Dusk, "PhyloSet_Nip_Dusk.csv")
+write_csv(PhyloSet_Nip_Dawn, "PhyloSet_Nip_Dawn.csv")
+write_csv(PhyloSet_N22_Dusk, "PhyloSet_N22_Dusk.csv")
+write_csv(PhyloSet_N22_Dawn, "PhyloSet_N22_Dawn.csv")
 write_csv(dicionario_clados, "dicionario_clados.csv")
+
+
 
 
