@@ -18,14 +18,12 @@ gerar_plot_automatico_ajustado <- function(arquivo) {
   
   message(">>> Processando: ", cenario_nome)
   
-  # Carregar dados e rodar testes
+  
+  #Análise 
+  
   df <- read_csv(arquivo, show_col_types = FALSE)
   phylo_set <- BulkPhyloExpressionSet_from_df(df)
   res_teste <- stat_flatline_test(phylo_set, plot_result = FALSE)
-  
-  # ============================================================================
-  # 1. EXTRAIR TAI E SALVAR A TABELA CSV
-  # ============================================================================
   valores_tai <- TAI(phylo_set) 
   p_val_bruto <- as.numeric(res_teste@p_value)
   
@@ -38,25 +36,14 @@ gerar_plot_automatico_ajustado <- function(arquivo) {
   nome_tabela_saida <- paste0("Valores_TAI_", cenario_nome, ".csv")
   write_csv(tabela_tai, nome_tabela_saida)
   message("    -> Valores de TAI e P-valor salvos em: ", nome_tabela_saida)
-  
-  # ============================================================================
-  # 2. NOVO: P-VALOR EXATO SEMPRE COM EXPOENTE SOBRESCRITO (x 10^y)
-  # ============================================================================
-  # Formata sempre o valor real, não importa o quão pequeno seja
   sci_val <- formatC(p_val_bruto, format = "e", digits = 2)
   sci_parts <- strsplit(sci_val, "e")[[1]]
   base <- sci_parts[1]
   exp <- as.numeric(sci_parts[2]) # Tira os zeros indesejados (ex: -05 vira -5)
-  
-  # Usamos '==' porque o ggplot traduz isso para um sinal limpo de '=' na imagem
   texto_p_valor <- paste0("Pflt == ", base, " %*% 10^", exp)
   
-  # ============================================================================
-  # 3. GERAÇÃO DO GRÁFICO
-  # ============================================================================
+# Graph
   g <- plot_signature(phylo_set, show_p_val = FALSE)
-  
-  # Pintando de Verde
   for (i in seq_along(g$layers)) {
     if (inherits(g$layers[[i]]$geom, "GeomRibbon") || inherits(g$layers[[i]]$geom, "GeomPolygon")) {
       g$layers[[i]]$aes_params$fill <- "#2E8B57" # Verde
@@ -65,10 +52,8 @@ gerar_plot_automatico_ajustado <- function(arquivo) {
       g$layers[[i]]$aes_params$colour <- "black" # Verde
     }
   }
-  
   g <- g + 
     geom_point(size = 3, color = "black") + 
-    # ATENÇÃO: parse = TRUE ativado para interpretar a matemática e gerar o expoente
     annotate("text", x = Inf, y = Inf, 
              label = texto_p_valor, parse = TRUE, 
              hjust = 1.2, vjust = 2, 
