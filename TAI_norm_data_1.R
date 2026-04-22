@@ -3,11 +3,11 @@ library(myTAI)
 library(readr)
 library(ggplot2)
 
-# Lendo os arquivos da análise anterior 
+# Lendo os arquivos normalizados
 arquivos_limpos <- c(
-  "nipponbare_full.csv", "n22_full.csv",
-  "nipponbare_dusk.csv", "n22_dusk.csv",
-  "nipponbare_dawn.csv", "n22_dawn.csv"
+  "nipponbare_full_norm.csv", "n22_full_norm.csv",
+  "nipponbare_dusk_norm.csv", "n22_dusk_norm.csv",
+  "nipponbare_dawn_norm.csv", "n22_dawn_norm.csv"
 )
 
 gerar_plot_automatico_ajustado <- function(arquivo) {
@@ -23,6 +23,9 @@ gerar_plot_automatico_ajustado <- function(arquivo) {
   phylo_set <- BulkPhyloExpressionSet_from_df(df)
   res_teste <- stat_flatline_test(phylo_set, plot_result = FALSE)
   
+  # ============================================================================
+  # 1. EXTRAIR TAI E SALVAR A TABELA CSV
+  # ============================================================================
   valores_tai <- TAI(phylo_set) 
   p_val_bruto <- as.numeric(res_teste@p_value)
   
@@ -35,31 +38,37 @@ gerar_plot_automatico_ajustado <- function(arquivo) {
   nome_tabela_saida <- paste0("Valores_TAI_", cenario_nome, ".csv")
   write_csv(tabela_tai, nome_tabela_saida)
   message("    -> Valores de TAI e P-valor salvos em: ", nome_tabela_saida)
-  if (p_val_bruto < 2e-16) {
-    texto_p_valor <- "Pflt < 2 %*% 10^-16"
-  } else if (p_val_bruto < 0.001) {
-    sci_val <- formatC(p_val_bruto, format = "e", digits = 2)
-    sci_parts <- strsplit(sci_val, "e")[[1]]
-    base <- sci_parts[1]
-    exp <- as.numeric(sci_parts[2])
-    texto_p_valor <- paste0("Pflt == ", base, " %*% 10^", exp)
-  } else {
-    val_arredondado <- round(p_val_bruto, 3)
-    texto_p_valor <- paste0("Pflt == ", val_arredondado)
-  }
+  
+  # ============================================================================
+  # 2. NOVO: P-VALOR EXATO SEMPRE COM EXPOENTE SOBRESCRITO (x 10^y)
+  # ============================================================================
+  # Formata sempre o valor real, não importa o quão pequeno seja
+  sci_val <- formatC(p_val_bruto, format = "e", digits = 2)
+  sci_parts <- strsplit(sci_val, "e")[[1]]
+  base <- sci_parts[1]
+  exp <- as.numeric(sci_parts[2]) # Tira os zeros indesejados (ex: -05 vira -5)
+  
+  # Usamos '==' porque o ggplot traduz isso para um sinal limpo de '=' na imagem
+  texto_p_valor <- paste0("Pflt == ", base, " %*% 10^", exp)
+  
+  # ============================================================================
+  # 3. GERAÇÃO DO GRÁFICO
+  # ============================================================================
   g <- plot_signature(phylo_set, show_p_val = FALSE)
   
+  # Pintando de Verde
   for (i in seq_along(g$layers)) {
     if (inherits(g$layers[[i]]$geom, "GeomRibbon") || inherits(g$layers[[i]]$geom, "GeomPolygon")) {
-      g$layers[[i]]$aes_params$fill <- "#D32F2F" # Vermelho
+      g$layers[[i]]$aes_params$fill <- "#2E8B57" # Verde
     }
     if (inherits(g$layers[[i]]$geom, "GeomLine")) {
-      g$layers[[i]]$aes_params$colour <- "black" # Linha preta mantida
+      g$layers[[i]]$aes_params$colour <- "black" # Verde
     }
   }
   
   g <- g + 
     geom_point(size = 3, color = "black") + 
+    # ATENÇÃO: parse = TRUE ativado para interpretar a matemática e gerar o expoente
     annotate("text", x = Inf, y = Inf, 
              label = texto_p_valor, parse = TRUE, 
              hjust = 1.2, vjust = 2, 
@@ -70,7 +79,7 @@ gerar_plot_automatico_ajustado <- function(arquivo) {
       x = "Stages",
       y = "Transcriptome age index (TAI)"
     ) +
-    scale_y_continuous(breaks = seq(0, 10, 0.1)) +
+    scale_y_continuous(breaks = seq(0, 10, 0.05)) +
     theme_bw() + 
     theme(
       panel.grid.major = element_blank(), 
@@ -82,11 +91,11 @@ gerar_plot_automatico_ajustado <- function(arquivo) {
       plot.subtitle = element_text(hjust = 0.5, size = 12, face = "italic")
     )
   
-  # Salvar 
-  nome_saida <- paste0("Fig_TAI_Vermelho_", cenario_nome, ".tiff")
+  # Salvar a Imagem TIFF
+  nome_saida <- paste0("Fig_TAI_", cenario_nome, ".tiff")
   ggsave(nome_saida, plot = g, width = 12, height = 10, dpi = 600, 
          device = "tiff", compression = "lzw")
-  message("    -> Gráfico (Vermelho) salvo em: ", nome_saida)
+  message("    -> Gráfico (Verde/Expoente Exato) salvo em: ", nome_saida)
   
   return(g)
 }
