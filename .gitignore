@@ -19,10 +19,16 @@ n22_full.csv
 nipponbare_dusk.csv
 nipponbare_dawn.csv
 n22_dusk.csv
-n22_dawn.csv
+n22_dawn.csv 
 Final_Automatico_nipponbare_full.tiff
 Final_Automatico_n22_full.tiff
 Final_Automatico_nipponbare_dusk.tiff
 Final_Automatico_n22_dusk.tiff
 Final_Automatico_nipponbare_dawn.tiff
 Final_Automatico_n22_dawn.tiff
+nipponbare_full_norm.csv
+n22_full_norm.csv 
+nipponbare_dusk_norm.csv
+nipponbare_dawn_norm.csv
+n22_dusk_norm.csv
+n22_dawn_norm.csv
