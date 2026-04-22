@@ -1,17 +1,15 @@
-# ==============================================================================
-# SCRIPT DE LIMPEZA: DADOS NORMALIZADOS (3D RNA-SEQ) PARA myTAI
-# ==============================================================================
+
 # Librarys 
 library(dplyr)
 library(tidyr)
 library(stringr)
 library(readr)
 
-# 1. Datasets (Lendo apenas Expressão Normalizada e Idades)
+# Datasets 
 expr_raw <- read_csv("norm_data_1.csv", show_col_types = FALSE)
 gene_age_raw <- read_tsv("39947_gene_ages.tsv", show_col_types = FALSE)
 
-# 2. Limpeza da tabela de idades
+# Clean
 gene_age_clean <- gene_age_raw %>%
   rename(gene = 1, PS = 3) %>%
   filter(!is.na(PS)) %>%
@@ -21,30 +19,28 @@ gene_age_clean <- gene_age_raw %>%
   group_by(gene) %>%
   summarise(PS = min(PS), .groups = "drop")
 
-# 3. Match PS e Expressão (Decompondo os nomes das colunas)
+# Match PS e Expressão 
 expr_long <- expr_raw %>%
   rename(gene = 1) %>%
-  # Limpa sufixo dos genes na tabela de expressão também
   mutate(gene = if_else(str_detect(gene, "^LOC_Os"), 
                         str_remove(gene, "\\.[0-9]+$"), 
                         gene)) %>%
   filter(!is.na(gene)) %>%
   pivot_longer(cols = -gene, names_to = "sample_id", values_to = "norm_expr") %>%
-  # Quebra o nome da coluna "1.1.27.Nipponbare.Dusk.brep1" em colunas úteis
   separate(sample_id, 
            into = c("Time", "Day", "Temp", "Genotype", "Diel", "Rep"), 
            sep = "\\.") %>%
   mutate(Time = as.numeric(Time)) %>%
   inner_join(gene_age_clean, by = "gene")
 
-# 4. Fazer média das replicatas por stage 
+# Fazer média das replicatas por stage 
 data_aggregated <- expr_long %>%
   group_by(Genotype, Diel, Time, Day, gene, PS) %>%
   summarise(mean_expr = mean(norm_expr, na.rm = TRUE), .groups = "drop") %>%
   arrange(Time) %>%
   mutate(stage = paste0("T", Time, "_", Diel))
 
-# 5. Função para formatar as matrizes para os 6 testes 
+# Função para formatar as matrizes para os 6 testes 
 format_to_mytai <- function(df) {
   df %>%
     select(gene, PS, stage, mean_expr) %>%
@@ -54,7 +50,7 @@ format_to_mytai <- function(df) {
     filter(rowSums(select(., -Phylostratum, -GeneID)) > 0)
 }
 
-# 6. Todos os estágios por cultivar
+# Todos os estágios por cultivar
 nippo_full <- data_aggregated %>% filter(Genotype == "Nipponbare") %>% format_to_mytai()
 n22_full   <- data_aggregated %>% filter(Genotype == "N22") %>% format_to_mytai()
 
@@ -67,7 +63,7 @@ n22_dusk   <- data_aggregated %>% filter(Genotype == "N22", Diel == "Dusk") %>% 
 n22_dawn   <- data_aggregated %>% filter(Genotype == "N22", Diel == "Dawn") %>% format_to_mytai()
 
 
-# 7. Salvar com Nomes Diferentes (Adicionado sufixo "_norm")
+# Salvar 
 write_csv(nippo_full, "nipponbare_full_norm.csv")
 write_csv(n22_full,   "n22_full_norm.csv")
 write_csv(nippo_dusk, "nipponbare_dusk_norm.csv")
@@ -76,7 +72,7 @@ write_csv(n22_dusk,   "n22_dusk_norm.csv")
 write_csv(n22_dawn,   "n22_dawn_norm.csv")
 
 
-# 8. Check de dados finais
+# Check de dados finais
 meus_arquivos <- c("nipponbare_full_norm.csv", "n22_full_norm.csv", 
                    "nipponbare_dusk_norm.csv", "nipponbare_dawn_norm.csv", 
                    "n22_dusk_norm.csv", "n22_dawn_norm.csv")
